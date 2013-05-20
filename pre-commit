@@ -1,0 +1,116 @@
+#!/usr/bin/python
+
+import os
+import re
+import subprocess
+import sys
+import glob
+from os.path import basename
+
+DIR = os.path.dirname(os.path.realpath(__file__))
+
+def start():
+	unityAssetFolder = DIR + "/../../Assets/"
+
+	result = True
+	result = check_files()
+
+	if not result:
+		sys.exit(1)
+
+	sys.exit(0)
+
+def check_files():
+	addedAndDeleted = subprocess.check_output('git diff --cached --name-only --diff-filter=ARD'.split())
+
+	result = True
+	files = addedAndDeleted.split('\n')
+	for singleFile in files:
+		if singleFile == '':
+			continue
+
+		isInUnityAssetsDirectory = singleFile.startswith("Assets/")
+		if not isInUnityAssetsDirectory:
+			continue
+
+		isMetaFile = singleFile.endswith(".meta")
+
+		if isMetaFile:
+			fileNameWithoutMeta = singleFile.replace(".meta", "");
+			metaFilePointsToFolder = not os.path.isfile(fileNameWithoutMeta)
+
+			if metaFilePointsToFolder:
+				continue
+
+			if not search_for_none_meta_with_folders(singleFile, files):
+				return False
+		else:
+			if not search_for_meta_with_folders(singleFile, files):
+				return False
+
+	return result
+
+def search_for_meta_with_folders(fileToCheck, files):
+	searchingFor = fileToCheck + ".meta"
+	for singleFile in files:
+		if singleFile == searchingFor:
+			if not search_for_directory_meta_files(fileToCheck, files):
+				return False
+			return True
+
+	print "You tried to commit the file " + fileToCheck + " without " + searchingFor
+	return False
+
+def search_for_meta(fileToCheck, files):
+	searchingFor = fileToCheck + ".meta"
+	for singleFile in files:
+		if singleFile == searchingFor:
+			return True
+
+	print "You tried to commit the file " + fileToCheck + " without " + searchingFor
+	return False
+
+def search_for_none_meta_with_folders(fileToCheck, files):
+	searchingFor = fileToCheck.replace(".meta", "");
+	for singleFile in files:
+		if singleFile == searchingFor:
+			if not search_for_directory_meta_files(fileToCheck, files):
+				return False
+			return True
+
+	print "You tried to commit the file " + fileToCheck + " without " + searchingFor
+	return False
+
+def search_for_none_meta(fileToCheck, files):
+	searchingFor = fileToCheck.replace(".meta", "");
+	for singleFile in files:
+		if singleFile == searchingFor:
+			return True
+
+	print "You tried to commit the file " + fileToCheck + " without " + searchingFor
+	return False
+
+def search_for_directory_meta_files(fileToCheck, files):
+	initialDirectory = os.path.dirname(fileToCheck)
+	while initialDirectory != '':
+		absDirectory = os.path.abspath(initialDirectory) + "/"
+		if(os.path.exists(absDirectory)):
+			metaFile = initialDirectory + ".meta"
+			returnCode = subprocess.call(["git", "ls-files", metaFile, "--error-unmatch"])
+			if returnCode != 0:
+				# this isn't checked in, ensure it's in our commit
+				if not search_for_meta(initialDirectory, files):
+					print "Added " + initialDirectory + " without " + initialDirectory + ".meta"
+					return False
+
+		split = initialDirectory.rsplit('/', True)
+		if split[0] == initialDirectory:
+			break
+		if split[0] == "Assets":
+			break
+
+		initialDirectory = split[0]
+
+	return True
+
+start()
