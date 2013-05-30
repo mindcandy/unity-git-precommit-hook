@@ -5,7 +5,7 @@ Overview
 --------
 
 This Git precommit-hook makes life a bit easier when using git as your source control solution for Unity3d. The precommit
-hook will ensure that any contributors commit any changes along with their necessary 
+hook will ensure that any contributors commit any changes along with their necessary .meta files.
 
 Using
 =====
